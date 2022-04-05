@@ -1,0 +1,127 @@
+install.packages("FD")
+library("FD")
+tr<-read.csv("trait_ARv2.csv", header=T, row.names = "Scientific_name")
+tr<-read.csv("trait_ARv2.csv", header=T)
+head(tr)
+tr.gower<-gowdis(tr)
+tr.gower
+
+ad<-read.csv("abun_ARv3.csv", header = T, row.names = "ï»¿site")
+head(ad)
+
+ad[is.na(ad)]<-0
+a<-(as.matrix(ad))
+fd_national<-dbFD(tr, a)
+H_nat<-diversity(ad)
+
+library(cluster)
+library(factoextra)
+library(ggplot2)
+library(NbClust)
+
+# Clusering using hclust
+A.trait<-read.csv("Supplementary_File_1_(amphibians).csv", head=T, row.names="Scientific_name")
+A.trait<-A.trait[,2:29] ## because Supplementary_Material_1_(amphibians).csv file contained "Cluster profile" at the 1st column already
+A.mydata <- na.omit(A.trait)
+summary(A.mydata)
+
+A.d <- dist(A.mydata,method = "euclidean", diag=FALSE)
+A.nc <- NbClust(data=NULL, diss=A.d, distance=NULL, min.nc=2, max.nc=5, method="ward.D2", index ="cindex")
+A.fitward <- hclust(A.d, method="ward.D2")
+plot(A.fitward)
+rect.hclust(A.fitward, k=5, border="red")
+
+# NMDS using vegan
+library(vegan)
+
+# In this datast, "spp" = trait & "site" = species
+A.traitCluster <-read.csv("Supplementary_File_1_(amphibians).csv", head=T, row.names="Scientific_name")
+A.nmds.trait<-A.traitCluster[,2:29]
+View(A.nmds.trait)
+A.p.mnds <- metaMDS(A.nmds.trait, distance = "gower",trymax = 100, k=3)
+A.p.mnds$stress
+A.dune.spp.fit <- envfit(A.p.mnds, A.nmds.trait, permutations = 999)
+A.spp.scrs <- as.data.frame(scores(A.dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+A.spp.scrs <- cbind(A.spp.scrs, Trait = rownames(A.spp.scrs)) #add species names to dataframe
+A.spp.scrs <- cbind(A.spp.scrs, pval = A.dune.spp.fit$vectors$pvals) #add pvalues to dataframe so you can select species which are significant
+A.sig.spp.scrs <- subset(A.spp.scrs, pval<0.05) #subset data to show species significant at 0.05
+A.site.scrs <- as.data.frame(scores(A.p.mnds, display = "sites")) #save NMDS results into dataframe
+A.site.scrs <- cbind(A.site.scrs, Cluster = A.traitCluster$Cluster) #add grouping variable "Management" to dataframe
+A.site.scrs <- cbind(A.site.scrs, Species = rownames(A.site.scrs)) #add site names as variable if you want to display on plot
+View(A.site.scrs)
+
+# plotting
+A.N <- ggplot(A.site.scrs, aes(x=NMDS1, y=NMDS2))+
+geom_point(aes(NMDS1, NMDS2, color=as.factor(Cluster)), alpha=0.5 )+
+stat_ellipse(aes(color=as.factor(Cluster)),type="norm", level = 0.4)+ #add ellipse for visibility of groups
+coord_fixed()+
+theme_classic()+
+theme(panel.background = element_rect(fill = NA, colour = "black", size = 1, linetype = "solid"))+
+labs(color = "Groups")+ #add legend labels for Management and Landuse
+theme(legend.position = "right", legend.text = element_text(size = 12),
+legend.title = element_text(size = 12),
+axis.text = element_text(size = 10))+
+theme(axis.text=element_text(size=15, colour="black"),
+axis.title = element_text(size=17, colour="black"))+
+annotate("text", x = 0.4, y = 0.4, label = "Stress = 0.08", size=5)
+A.N
+A.n<-A.N+ ggrepel::geom_text_repel(data = A.site.scrs, aes(x=NMDS1, y=NMDS2, color=as.factor(Cluster),
+label =  Species), size=5)
+A.n
+A.n.2 <- A.n+geom_segment(data = A.sig.spp.scrs, aes(x = 0, xend=(NMDS1/2), y=0, yend=(NMDS2/2)),
+arrow = arrow(length = unit(0.1, "cm")), colour = "grey", alpha=0.5) +
+ggrepel::geom_text_repel(data = A.sig.spp.scrs, aes(x=(NMDS1/2), y=(NMDS2/2), label = Trait),
+cex = 3.5, direction = "both", segment.size = 3.5, alpha=0.5)
+A.n.2
+
+# Clusering using hclust
+R.trait<-read.csv("Supplementary_File_2_(reptiles).csv", head=T, row.names="Scientific_name")
+R.trait<-R.trait[,2:28] ## because Supplementary_Material_2_(reptiles).csv file contained "Cluster profile" at the 1st column already
+R.mydata <- na.omit(R.trait)
+summary(R.mydata)
+
+R.d <- dist(R.mydata,method = "euclidean", diag=FALSE)
+R.nc <- NbClust(data=NULL, diss=R.d, distance=NULL, min.nc=2, max.nc=5, method="ward.D2", index ="cindex")
+R.fitward <- hclust(R.d, method="ward.D2")
+plot(R.fitward)
+rect.hclust(R.fitward, k=3, border="red")
+
+# In this datast, "spp" = trait & "site" = species
+R.traitCluster <-read.csv("Supplementary_File_2_(reptiles).csv", head=T, row.names="Scientific_name")
+R.nmds.trait<-R.traitCluster[,2:28]
+View(R.nmds.trait)
+R.p.mnds <- metaMDS(R.nmds.trait, distance = "gower",trymax = 100, k=3)
+R.p.mnds$stress
+R.dune.spp.fit <- envfit(R.p.mnds, R.nmds.trait, permutations = 999) 
+R.spp.scrs <- as.data.frame(scores(R.dune.spp.fit, display = "vectors")) #save species intrinsic values into dataframe
+R.spp.scrs <- cbind(R.spp.scrs, Trait = rownames(R.spp.scrs)) #add species names to dataframe
+R.spp.scrs <- cbind(R.spp.scrs, pval = R.dune.spp.fit$vectors$pvals) #add pvalues to dataframe so you can select species which are significant
+R.sig.spp.scrs <- subset(R.spp.scrs, pval<0.05) #subset data to show species significant at 0.05
+R.site.scrs <- as.data.frame(scores(R.p.mnds, display = "sites")) #save NMDS results into dataframe
+R.site.scrs <- cbind(R.site.scrs, Cluster = R.traitCluster$Cluster) #add grouping variable "Management" to dataframe
+R.site.scrs <- cbind(R.site.scrs, Species = rownames(R.site.scrs)) #add site names as variable if you want to display on plot
+View(R.site.scrs)
+
+# plotting
+R.N <- ggplot(R.site.scrs, aes(x=NMDS1, y=NMDS2))+
+geom_point(aes(NMDS1, NMDS2, color=as.factor(Cluster)), alpha=0.5 )+
+stat_ellipse(aes(color=as.factor(Cluster)),type="norm", level = 0.4)+ #add ellipse for visibility of groups
+coord_fixed()+
+theme_classic()+
+theme(panel.background = element_rect(fill = NA, colour = "black", size = 1, linetype = "solid"))+
+labs(color = "Groups")+ #add legend labels for Management and Landuse
+theme(legend.position = "right", legend.text = element_text(size = 12),
+legend.title = element_text(size = 12),
+axis.text = element_text(size = 10))+
+theme(axis.text=element_text(size=15, colour="black"),
+axis.title = element_text(size=17, colour="black"))+
+annotate("text", x = -0.55, y = -0.65, label = "Stress = 0.07", size=5)
+R.N
+R.n<-R.N+ ggrepel::geom_text_repel(data = R.site.scrs, aes(x=NMDS1, y=NMDS2, color=as.factor(Cluster),
+label =  Species), size=5)
+R.n
+R.n.2 <- R.n+geom_segment(data = R.sig.spp.scrs, aes(x = 0, xend=(NMDS1/2), y=0, yend=(NMDS2/2)),
+arrow = arrow(length = unit(0.1, "cm")), colour = "grey", alpha=0.5) +
+ggrepel::geom_text_repel(data = R.sig.spp.scrs, aes(x=(NMDS1/2), y=(NMDS2/2), label = Trait),
+cex = 3.5, direction = "both", segment.size = 0.25, alpha=0.5)
+R.n.2
